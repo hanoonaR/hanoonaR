@@ -1,6 +1,6 @@
 ### Hi there 👋
-I am a Ph.D. student in Computer Vision at MBZUAI. My current area of research is focused on exploring the potential of multi-modal understanding from vision and language to build scalable general-purpose vision systems, that continually learn and can generalize to various domains and downstream tasks using an open-vocabulary.
+I am a Computer Vision researcher focused on multimodal understanding and reasoning. I am currently pursuing my PhD at MBZUAI and have worked with Meta and Adobe as a Research Scientist Intern. My work centers on building more reliable, interpretable, and grounded multimodal models, and has resulted in impactful research publications.
 - 🔭 I’m currently working on Multi-Modal Transformers in Computer Vision Applications.
-- 🌍 Visit my webpage: [hanoonarasheed.com](https://www.hanoonarasheed.com/)
+- 🌍 Visit my webpage: [in](https://www.linkedin.com/in/hanoona-abdul-rasheed/)
 - 🏛 Part of [IVAL](https://www.ival-mbzuai.com/) Lab
 - 📫 How to reach me: hanoona.bangalath@mbzuai.ac.ae
