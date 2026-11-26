@@ -103,21 +103,13 @@ h1 {
   letter-spacing: -0.02em;
 }
 
-.lede {
-  margin: 0 0 12px;
-  font-size: clamp(18px, 1.8vw, 20px);
-  font-weight: 500;
-  line-height: 1.45;
-  color: var(--ink);
-}
-.lede strong { color: var(--accent); font-weight: 700; }
-
 .bio {
   margin: 0;
   color: var(--ink-2);
 }
-/* Intro sentence and bio justified, like the project descriptions */
-.lede, .bio { text-align: justify; }
+.bio + .bio { margin-top: 10px; }
+/* Bio justified, like the project descriptions */
+.bio { text-align: justify; }
 .viz-note[hidden] { display: none; }
 .bio a { white-space: nowrap; }
 
@@ -504,8 +496,7 @@ html:not(.viz-live) .viz { display: none; }
   .moment .credit { font-size: 13px; }
   .site-footer { font-size: 13px; }
   /* Justified on phones too; word breaks and wrapping links keep the gaps between words small */
-  .lede, .bio { hyphens: auto; -webkit-hyphens: auto; }
-  .lede { font-size: 16px; }
+  .bio { hyphens: auto; -webkit-hyphens: auto; }
   .bio a { white-space: normal; }
   .section { padding: 28px 0; }
   /* News and "In the news": smaller text, date kept in a narrow column on the left */
