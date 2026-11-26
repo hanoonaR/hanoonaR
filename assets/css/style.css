@@ -112,6 +112,7 @@ h1 {
 .bio { text-align: justify; }
 .viz-note[hidden] { display: none; }
 .bio a { white-space: nowrap; }
+.bio strong { color: var(--accent); font-weight: 700; }
 
 .buttons {
   display: flex;
