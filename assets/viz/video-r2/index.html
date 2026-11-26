@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Video-R2 Clip v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../viz.css">
+<style>.stage { width: 1600px; height: 640px; } html, body { background: #f3f2ee; }</style>
+</head>
+<body>
+<!-- Hanoona's "Video-R2 Clip v2" exactly as exported from Claude Design.
+     clip.js = videor2b.jsx compiled as-is (plus one start line); r2/img/ holds the original frames.
+     ../dc-lite.js stands in for the Claude Design runtime; ../viz.js handles play/pause and reduced motion. -->
+<div class="stage" data-loop="32.3" data-rest="4" role="img"
+     aria-label="Video-R2 explainer: does the thinking match the answer, and is it grounded in the video? Video-R1 reasons from prior knowledge and thinks A but answers E; Video-R2 scrubs to 01:45, finds 23,666 transactions per second, converts it to a daily total and answers A consistently; TAC and VAS bars for five models with Video-R2 highest on both."></div>
+<script>
+  window.OM_SCENES = '[{"name":"Hook","dur":5.5,"desc":"Asks whether the thinking matches the answer, shows a think-A / answer-E mismatch, then asks whether thinking is grounded in the video"},{"name":"Example","dur":3.4,"desc":"The video plays in a player with a scrubber while the Visa question and five options appear"},{"name":"Baseline","dur":5.4,"desc":"Video-R1 reasons from prior knowledge with low video attention; think lands on A, answer on E"},{"name":"Grounded","dur":4.8,"desc":"Video-R2 scrubs to 01:45 and boxes the 23,666 transactions/sec evidence; attention rises"},{"name":"Answer","dur":3.8,"desc":"Video-R2 converts the rate to a daily total; think and answer both land on A"},{"name":"Metrics","dur":4.8,"desc":"TAC and VAS bars grow for five models, Video-R2 highest on both"},{"name":"Outro","dur":4.6,"desc":"Left-aligned title with three contributions, then fade to the opening frame"}]';
+  window.OM_PLAYBACK = '{"mode":"loop"}';
+  window.TWEAK_DEFAULTS = {"theme":"light","chapterLabels":true,"motionEditor":true};
+</script>
+<script src="../vendor/react.production.min.js"></script>
+<script src="../vendor/react-dom.production.min.js"></script>
+<script src="../dc-lite.js"></script>
+<script src="clip.js"></script>
+<script>dcMount();</script>
+<script src="../viz.js"></script>
+</body>
+</html>

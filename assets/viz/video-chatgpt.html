@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Video-ChatGPT: spatio-temporal pooling into an LLM</title>
+<link rel="stylesheet" href="viz.css">
+<style>
+  /* Frame features from CLIP form a time x space grid of tokens (columns = frames, rows = patch positions).
+     Pooling over time collapses each row into one spatial token; pooling over space collapses each column
+     into one temporal token. Both sets are concatenated, mapped by a linear layer into the LLM, and the answer types out.
+     Canvas: 1000 x 400 (5:2). */
+  .stage { width: 1000px; height: 400px; }
+
+  .query { left: 20px; top: 12px; width: 960px; font-size: 15px; color: var(--ink-2); white-space: nowrap; }
+  .query .lbl { margin-right: 8px; font-size: 12px; }
+  .query b { color: var(--ink); font-weight: 700; }
+
+  .rowlab { left: 20px; width: 100px; font-size: 12px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-3); line-height: 1.25; }
+  .rowlab small { display: block; margin-top: 2px; font-size: 12px; font-weight: 700; letter-spacing: 0; text-transform: none; }
+
+  .fr { top: 38px; width: 62px; height: 35px; border-radius: 3px; }
+  .axis { font-size: 12px; font-weight: 800; color: var(--ink-3); letter-spacing: 0.04em; white-space: nowrap; }
+  .enc { left: 128px; top: 78px; width: 538px; height: 22px; border-radius: 6px; background: var(--green-soft); border: 1.5px solid var(--green);
+          font-size: 13px; font-weight: 700; color: var(--green); display: grid; place-items: center; white-space: nowrap; }
+
+  .col { width: 52px; height: 86px; }
+  .col > .tk { position: absolute; left: 0; }
+  .tk { width: 52px; height: 11px; border-radius: 3px; background: var(--pink-soft); border: 1.4px solid var(--pink); }
+  .tk.sp { background: var(--blue-soft); border-color: var(--blue); }
+  .tk.tp { background: var(--violet-soft); border-color: var(--violet); }
+
+  /* pooling sweeps: only drawn while animating (hidden in the static frame) */
+  .rbar, .cbar { display: none; border-radius: 4px; }
+  .anim .rbar, .anim .cbar { display: block; }
+  .rbar { height: 15px; margin-top: -2px; background: rgba(220,235,255,0.75); border: 1.5px solid var(--blue); transform-origin: 0 50%; }
+  .cbar { width: 56px; margin-left: -2px; background: rgba(232,224,255,0.75); border: 1.5px solid var(--violet); transform-origin: 50% 0; }
+  .anim .rbar.on { transform: translateX(563px) scaleX(0.0985); transition: transform 0.6s cubic-bezier(0.5, 0, 0.3, 1) 0.15s, opacity 0.15s; }
+  .anim .cbar.on { transform: translateY(97px) scaleY(0.1279); transition: transform 0.6s cubic-bezier(0.5, 0, 0.3, 1) 0.15s, opacity 0.15s; }
+  .anim .rbar:not(.on), .anim .cbar:not(.on) { transition: none; }
+
+  .flab { font-size: 14px; font-weight: 800; line-height: 1.25; white-space: nowrap; }
+  .flab small { display: block; font-size: 12.5px; font-weight: 700; color: var(--ink-3); }
+  .flab.sp { color: var(--blue); }
+  .flab.tp { color: var(--violet); }
+
+  .seq { left: 128px; top: 256px; width: 332px; height: 12px; }
+  .seq > .tk { position: absolute; top: 0; }
+  .tk.s { width: 20px; height: 12px; }
+
+  .arr { height: 10px; }
+  .arr::before { content: ""; position: absolute; left: 0; right: 2px; top: 4.25px; border-top: 1.5px solid var(--ink-3); }
+  .arr::after { content: ""; position: absolute; right: 0; top: 1px; border: 4px solid transparent; border-left: 6px solid var(--ink-3); border-right: 0; }
+  .blk { height: 30px; top: 247px; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 14px; font-weight: 800; white-space: nowrap; }
+  .blk small { font-size: 12px; font-weight: 700; color: var(--ink-3); }
+  .lin { left: 502px; width: 150px; background: var(--amber-soft); border: 1.5px solid var(--amber); color: var(--amber); }
+  .llm { left: 694px; right: 16px; background: #fff; border: 1.5px solid var(--accent); color: var(--accent); }
+  .llm-on { left: 694px; right: 16px; background: var(--accent-soft); border: 1.5px solid var(--accent); }
+  .down { width: 0; border-left: 1.5px solid var(--ink-3); }
+  .down::after { content: ""; position: absolute; left: -5px; bottom: -2px; border: 4px solid transparent; border-top: 6px solid var(--ink-3); border-bottom: 0; }
+
+  .resp { left: 16px; top: 290px; width: 968px; height: 72px; border-radius: 12px; background: #fbf4f8; border: 1px solid #ecd3df; }
+  .resp > * { position: absolute; }
+  .resp .name { left: 16px; top: 8px; font-size: 16px; font-weight: 800; color: var(--accent); }
+  .resp .txt { left: 16px; top: 30px; width: 936px; font-size: 15px; line-height: 20px; color: var(--ink); }
+
+  .badge { right: 16px; top: 370px; display: flex; gap: 8px; }
+  .badge .chip { font-size: 13.5px; }
+  .scale-note { left: 20px; top: 375px; font-size: 12px; color: var(--ink-3); }
+</style>
+</head>
+<body>
+<div class="stage" data-loop="12" role="img"
+     aria-label="Video-ChatGPT answers 'Where is this video taken from?' for a video of the Statue of Liberty. Eight frames pass through a frozen CLIP L/14 encoder into a grid of feature tokens, one column per frame and one row per patch position. Pooling over time collapses each row into a spatial feature; pooling over space collapses each column into a temporal feature. The two sets are concatenated, mapped by a trained linear layer into the frozen Vicuna v1.1 language model, which answers 'This video is taken in New York City, especially in the vicinity of the Statue of Liberty.'">
+
+  <div class="query"><span class="lbl">User query</span>“<b>Where is this video taken from?</b>”</div>
+
+  <div class="rowlab" style="top:47px">Frames</div>
+  <img class="frame fr" src="img/video-chatgpt/f1.jpg" alt="" style="left:128px">
+  <img class="frame fr" src="img/video-chatgpt/f2.jpg" alt="" style="left:196px">
+  <img class="frame fr" src="img/video-chatgpt/f3.jpg" alt="" style="left:264px">
+  <img class="frame fr" src="img/video-chatgpt/f4.jpg" alt="" style="left:332px">
+  <img class="frame fr" src="img/video-chatgpt/f5.jpg" alt="" style="left:400px">
+  <img class="frame fr" src="img/video-chatgpt/f6.jpg" alt="" style="left:468px">
+  <img class="frame fr" src="img/video-chatgpt/f7.jpg" alt="" style="left:536px">
+  <img class="frame fr" src="img/video-chatgpt/f8.jpg" alt="" style="left:604px">
+  <span class="axis" style="left:676px;top:47px">time →</span>
+
+  <div class="enc">Visual encoder: pretrained CLIP (L/14) · frozen</div>
+
+  <div class="rowlab" style="top:125px">Frame<br>features<small>frame × patch</small><small>(schematic)</small></div>
+  <div class="col drop" data-cue="0.5" style="left:133px;top:107px"><span class="tk" style="top:0px"></span><span class="tk" style="top:15px"></span><span class="tk" style="top:30px"></span><span class="tk" style="top:45px"></span><span class="tk" style="top:60px"></span><span class="tk" style="top:75px"></span></div>
+  <div class="col drop" data-cue="0.64" style="left:201px;top:107px"><span class="tk" style="top:0px"></span><span class="tk" style="top:15px"></span><span class="tk" style="top:30px"></span><span class="tk" style="top:45px"></span><span class="tk" style="top:60px"></span><span class="tk" style="top:75px"></span></div>
+  <div class="col drop" data-cue="0.78" style="left:269px;top:107px"><span class="tk" style="top:0px"></span><span class="tk" style="top:15px"></span><span class="tk" style="top:30px"></span><span class="tk" style="top:45px"></span><span class="tk" style="top:60px"></span><span class="tk" style="top:75px"></span></div>
+  <div class="col drop" data-cue="0.92" style="left:337px;top:107px"><span class="tk" style="top:0px"></span><span class="tk" style="top:15px"></span><span class="tk" style="top:30px"></span><span class="tk" style="top:45px"></span><span class="tk" style="top:60px"></span><span class="tk" style="top:75px"></span></div>
+  <div class="col drop" data-cue="1.06" style="left:405px;top:107px"><span class="tk" style="top:0px"></span><span class="tk" style="top:15px"></span><span class="tk" style="top:30px"></span><span class="tk" style="top:45px"></span><span class="tk" style="top:60px"></span><span class="tk" style="top:75px"></span></div>
+  <div class="col drop" data-cue="1.2" style="left:473px;top:107px"><span class="tk" style="top:0px"></span><span class="tk" style="top:15px"></span><span class="tk" style="top:30px"></span><span class="tk" style="top:45px"></span><span class="tk" style="top:60px"></span><span class="tk" style="top:75px"></span></div>
+  <div class="col drop" data-cue="1.34" style="left:541px;top:107px"><span class="tk" style="top:0px"></span><span class="tk" style="top:15px"></span><span class="tk" style="top:30px"></span><span class="tk" style="top:45px"></span><span class="tk" style="top:60px"></span><span class="tk" style="top:75px"></span></div>
+  <div class="col drop" data-cue="1.48" style="left:609px;top:107px"><span class="tk" style="top:0px"></span><span class="tk" style="top:15px"></span><span class="tk" style="top:30px"></span><span class="tk" style="top:45px"></span><span class="tk" style="top:60px"></span><span class="tk" style="top:75px"></span></div>
+
+  <div class="rowlab" style="top:203px">Pooled</div>
+
+  <!-- pool over time: each row -> one spatial token -->
+  <span class="rbar" data-cue="2.4" data-off="3.25" style="left:133px;top:107px;width:528px"></span>
+  <span class="rbar" data-cue="2.4" data-off="3.25" style="left:133px;top:122px;width:528px"></span>
+  <span class="rbar" data-cue="2.4" data-off="3.25" style="left:133px;top:137px;width:528px"></span>
+  <span class="rbar" data-cue="2.4" data-off="3.25" style="left:133px;top:152px;width:528px"></span>
+  <span class="rbar" data-cue="2.4" data-off="3.25" style="left:133px;top:167px;width:528px"></span>
+  <span class="rbar" data-cue="2.4" data-off="3.25" style="left:133px;top:182px;width:528px"></span>
+  <span class="tk sp pop" data-cue="3.0" style="left:696px;top:107px"></span>
+  <span class="tk sp pop" data-cue="3.0" style="left:696px;top:122px"></span>
+  <span class="tk sp pop" data-cue="3.0" style="left:696px;top:137px"></span>
+  <span class="tk sp pop" data-cue="3.0" style="left:696px;top:152px"></span>
+  <span class="tk sp pop" data-cue="3.0" style="left:696px;top:167px"></span>
+  <span class="tk sp pop" data-cue="3.0" style="left:696px;top:182px"></span>
+  <div class="flab sp" data-cue="3.0" style="left:762px;top:125px">Spatial features<small>pool over time:</small><small>one token per patch</small></div>
+
+  <!-- pool over space: each column -> one temporal token -->
+  <span class="cbar" data-cue="3.9" data-off="4.75" style="left:133px;top:107px;height:86px"></span>
+  <span class="cbar" data-cue="3.9" data-off="4.75" style="left:201px;top:107px;height:86px"></span>
+  <span class="cbar" data-cue="3.9" data-off="4.75" style="left:269px;top:107px;height:86px"></span>
+  <span class="cbar" data-cue="3.9" data-off="4.75" style="left:337px;top:107px;height:86px"></span>
+  <span class="cbar" data-cue="3.9" data-off="4.75" style="left:405px;top:107px;height:86px"></span>
+  <span class="cbar" data-cue="3.9" data-off="4.75" style="left:473px;top:107px;height:86px"></span>
+  <span class="cbar" data-cue="3.9" data-off="4.75" style="left:541px;top:107px;height:86px"></span>
+  <span class="cbar" data-cue="3.9" data-off="4.75" style="left:609px;top:107px;height:86px"></span>
+  <span class="tk tp pop" data-cue="4.5" style="left:133px;top:204px"></span>
+  <span class="tk tp pop" data-cue="4.5" style="left:201px;top:204px"></span>
+  <span class="tk tp pop" data-cue="4.5" style="left:269px;top:204px"></span>
+  <span class="tk tp pop" data-cue="4.5" style="left:337px;top:204px"></span>
+  <span class="tk tp pop" data-cue="4.5" style="left:405px;top:204px"></span>
+  <span class="tk tp pop" data-cue="4.5" style="left:473px;top:204px"></span>
+  <span class="tk tp pop" data-cue="4.5" style="left:541px;top:204px"></span>
+  <span class="tk tp pop" data-cue="4.5" style="left:609px;top:204px"></span>
+  <div class="flab tp" data-cue="4.5" style="left:696px;top:200px">Temporal features<small>pool over space: one token per frame</small></div>
+
+  <div class="rowlab" style="top:254px">Concat</div>
+  <div class="seq wipe" data-cue="5.3"><span class="tk tp s" style="left:0px"></span><span class="tk tp s" style="left:24px"></span><span class="tk tp s" style="left:48px"></span><span class="tk tp s" style="left:72px"></span><span class="tk tp s" style="left:96px"></span><span class="tk tp s" style="left:120px"></span><span class="tk tp s" style="left:144px"></span><span class="tk tp s" style="left:168px"></span><span class="tk sp s" style="left:192px"></span><span class="tk sp s" style="left:216px"></span><span class="tk sp s" style="left:240px"></span><span class="tk sp s" style="left:264px"></span><span class="tk sp s" style="left:288px"></span><span class="tk sp s" style="left:312px"></span></div>
+  <div class="arr wipe" data-cue="5.7" style="left:468px;top:257px;width:28px"></div>
+  <div class="blk lin">Linear layer <small>trained</small></div>
+  <div class="arr wipe" data-cue="6.0" style="left:658px;top:257px;width:30px"></div>
+  <div class="llm-on" data-cue="6.2" style="top:247px;height:30px;border-radius:8px"></div>
+  <div class="blk llm" style="background:transparent">LLM <small>Vicuna v1.1 · frozen</small></div>
+  <div class="down" data-cue="6.5" style="left:764px;top:279px;height:10px"></div>
+
+  <div class="resp">
+    <div class="name">Video-ChatGPT</div>
+    <div class="txt"><span data-cue="6.7">This</span> <span data-cue="6.78">video</span> <span data-cue="6.85">is</span> <span data-cue="6.93">taken</span> <span data-cue="7.0">in</span> <span data-cue="7.08">New</span> <span data-cue="7.15">York</span> <span data-cue="7.23">City,</span> <span data-cue="7.3">especially</span> <span data-cue="7.38">in</span> <span data-cue="7.45">the</span> <span data-cue="7.53">vicinity</span> <span data-cue="7.6">of</span> <span data-cue="7.68">the</span> <span data-cue="7.75">Statue</span> <span data-cue="7.83">of</span> <span data-cue="7.9">Liberty.</span> <span data-cue="7.98">The</span> <span data-cue="8.05">statue</span> <span data-cue="8.13">is</span> <span data-cue="8.2">shown</span> <span data-cue="8.28">in</span> <span data-cue="8.35">the</span> <span data-cue="8.42">background,</span> <span data-cue="8.5">and</span> <span data-cue="8.57">the</span> <span data-cue="8.65">video</span> <span data-cue="8.72">also</span> <span data-cue="8.8">shows</span> <span data-cue="8.87">the</span> <span data-cue="8.95">city</span> <span data-cue="9.02">skyline</span> <span data-cue="9.1">in</span> <span data-cue="9.17">the</span> <span data-cue="9.25">background.</span></div>
+  </div>
+
+  <div class="badge rise" data-cue="9.67">
+    <span class="chip accent">100,000 video-instruction pairs</span>
+    <span class="chip soft">quantitative evaluation framework</span>
+  </div>
+</div>
+<script src="viz.js"></script>
+</body>
+</html>

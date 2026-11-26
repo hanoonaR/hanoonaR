@@ -1,0 +1,172 @@
+/* ==========================================================================
+   Shared style for the project visualizations (assets/viz/*.html).
+   Each visualization is a fixed-size "stage" (5:2: 1000 x 400, or 1600 x 640 for the
+   explainer clips; set in each file) that scales to fit its frame,
+   so every project on the page gets exactly the same size and look.
+
+   Animation model (see viz.js): any element with data-cue="SECONDS" appears
+   at that moment of the loop (and data-off="SECONDS" hides it again).
+   Without JavaScript, or with reduced motion, everything simply shows in
+   its finished state, so the resting frame is always complete.
+   ========================================================================== */
+
+@font-face {
+  font-family: "Nunito";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("../fonts/nunito-latin.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Nunito";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("../fonts/nunito-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1E00-1E9F, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+:root {
+  /* the site's palette */
+  --ink: #1c1a19;
+  --ink-2: #4b4744;
+  --ink-3: #7b756f;
+  --line: #e7e2db;
+  --paper: #ffffff;
+  --tint: #f8f6f2;
+  --accent: #8a2c55;
+  --accent-soft: #f5e9ef;
+
+  /* categorical marks (pastel fill + strong stroke), GLaMM-caption style */
+  --blue: #2f6fb8;    --blue-soft: #dcebff;
+  --green: #2f8a4a;   --green-soft: #dcf3d9;
+  --pink: #c2417a;    --pink-soft: #ffe0ec;
+  --amber: #b7791f;   --amber-soft: #fdeccb;
+  --violet: #6b4fc8;  --violet-soft: #e8e0ff;
+  --detect: #ff7eb6;  /* same pink as the detection box on the portrait */
+
+  --font: "Nunito", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.35;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Fixed design canvas: 800 x 400, scaled by viz.js */
+.stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 800px;
+  height: 400px;
+  overflow: hidden;
+  transform-origin: 0 0;
+}
+.stage > * { position: absolute; }
+
+/* ---------- Shared atoms ---------- */
+
+.lbl {
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--tint);
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.chip.accent { background: var(--accent); border-color: var(--accent); color: #fff; }
+.chip.soft { background: var(--accent-soft); border-color: #ecd3df; color: var(--accent-strong, #6b1f40); }
+
+.panel {
+  background: var(--tint);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.frame {
+  display: block;
+  border-radius: 5px;
+  object-fit: cover;
+  background: #ddd;
+}
+
+.mono { font-family: var(--mono); }
+
+/* ---------- Animation ---------- */
+
+/* Elements with data-cue are hidden until their cue (only while animating). */
+.anim [data-cue] {
+  transition: opacity 0.4s ease, transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), clip-path 0.6s ease;
+}
+.anim [data-cue]:not(.on) { opacity: 0; }
+.anim .pop[data-cue]:not(.on) { transform: scale(0.55); }
+.anim .rise[data-cue]:not(.on) { transform: translateY(10px); }
+.anim .wipe[data-cue] { clip-path: inset(0 0 0 0); }
+.anim .wipe[data-cue]:not(.on) { clip-path: inset(0 100% 0 0); opacity: 1; }
+.anim .drop[data-cue] { clip-path: inset(0 0 0 0); }
+.anim .drop[data-cue]:not(.on) { clip-path: inset(0 0 100% 0); opacity: 1; }
+
+/* Debug/screenshot mode (#t=SECONDS): no transitions, state frozen at that time */
+.frozen [data-cue] { transition: none !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* ---------- Hover to play ---------- */
+
+/* At rest nothing moves: CSS loops are switched off, so each piece shows its
+   static (finished) frame until the pointer is over it. */
+.idle *, .idle *::before, .idle *::after { animation: none !important; }
+
+.viz-hint {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(28, 26, 25, 0.12);
+  box-shadow: 0 2px 8px rgba(28, 26, 25, 0.12);
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+.viz-hint::before {
+  content: "";
+  margin-left: 2px;
+  border-left: 7px solid #8a2c55;
+  border-top: 4.5px solid transparent;
+  border-bottom: 4.5px solid transparent;
+}
+.viz-hint.touch { right: auto; left: 8px; }
+.viz-hint.br { top: auto; bottom: 8px; }  /* data-hint="bottom-right": for clips with a label in the top-right corner */
+.playing .viz-hint { opacity: 0; }

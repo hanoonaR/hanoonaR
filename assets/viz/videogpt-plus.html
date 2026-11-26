@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VideoGPT+: dual encoders with segment-wise pooling</title>
+<link rel="stylesheet" href="viz.css">
+<style>
+  /* Two streams read the same video.
+     Top: the image encoder looks at every frame on its own (fine spatial detail).
+     Bottom: the video encoder looks at each segment as one clip (temporal context).
+     Both feature maps are pooled 2x2 (the grid of tokens visibly shrinks), concatenated, and fed to the LLM.
+     Canvas: 1000 x 400 (5:2). */
+  .stage { width: 1000px; height: 400px; }
+
+  .query { left: 20px; top: 12px; width: 960px; font-size: 15px; color: var(--ink-2); white-space: nowrap; }
+  .query .lbl { margin-right: 8px; font-size: 12px; }
+  .query b { color: var(--ink); font-weight: 700; }
+
+  .lane { left: 16px; width: 560px; height: 156px; border-radius: 12px; border: 1px solid var(--line); background: var(--tint); }
+  .lane.img { top: 40px; }
+  .lane.vid { top: 204px; }
+  .lane > * { position: absolute; }
+
+  .meta { left: 16px; top: 11px; width: 152px; }
+  .meta .name { font-size: 16.5px; font-weight: 800; line-height: 1.2; }
+  .img .meta .name { color: var(--amber); }
+  .vid .meta .name { color: var(--violet); }
+  .meta .sub { margin-top: 4px; font-size: 12.5px; color: var(--ink-3); line-height: 1.3; }
+  .meta .role { margin-top: 10px; font-size: 13px; font-weight: 700; color: var(--ink-2); line-height: 1.3; }
+  .meta .role b { font-weight: 800; color: var(--ink); }
+
+  /* input cards: 90 x 60 */
+  .card { width: 90px; height: 60px; }
+  .card img { width: 90px; height: 60px; position: relative; }
+  .card .tag { position: absolute; left: 4px; bottom: 4px; padding: 0 6px; border-radius: 999px; background: rgba(255,255,255,0.92); font-size: 11.5px; font-weight: 800; color: var(--ink-2); line-height: 17px; }
+  .back { position: absolute; width: 90px; height: 60px; border-radius: 5px; background: #fff; border: 1px solid #cfc3ef; }
+  .colcap { top: 5px; font-size: 11.5px; font-weight: 800; color: var(--ink-3); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
+  .mid { top: 79px; width: 64px; text-align: center; }
+
+  /* feature maps: 60 x 60 with an 8 x 8 token grid; pooled: 30 x 30 with 4 x 4 */
+  .feat { width: 60px; height: 60px; }
+  .feat.sm { width: 30px; height: 30px; }
+  .feat img { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 3px; }
+  .feat .grid { position: absolute; inset: 0; border-radius: 3px; background-size: 7.5px 7.5px; }
+  .img .feat .grid { border: 1.5px solid var(--amber); background-color: rgba(253,236,203,0.28);
+    background-image: linear-gradient(to right, rgba(183,121,31,0.85) 1px, transparent 1px), linear-gradient(to bottom, rgba(183,121,31,0.85) 1px, transparent 1px); }
+  .vid .feat .grid { border: 1.5px solid var(--violet); background-color: rgba(232,224,255,0.28);
+    background-image: linear-gradient(to right, rgba(107,79,200,0.85) 1px, transparent 1px), linear-gradient(to bottom, rgba(107,79,200,0.85) 1px, transparent 1px); }
+  .fback { position: absolute; border-radius: 3px; background: var(--violet-soft); border: 1.5px solid var(--violet); }
+
+  /* the pooling moment: a copy of each feature map slides right and halves in size */
+  .ghost { transform-origin: 0 0; display: none; }
+  .anim .ghost { display: block; }
+  .anim .ghost.on { transform: translate(144px, 15px) scale(0.5); transition: transform 0.6s cubic-bezier(0.5, 0, 0.3, 1), opacity 0.1s; }
+  .anim .ghost:not(.on) { transition: none; }
+
+  .arr { height: 10px; margin-top: -5px; }
+  .arr::before { content: ""; position: absolute; left: 0; right: 2px; top: 4.25px; border-top: 1.5px solid var(--ink-3); }
+  .arr::after { content: ""; position: absolute; right: 0; top: 1px; border: 4px solid transparent; border-left: 6px solid var(--ink-3); border-right: 0; }
+  .alab { font-size: 11.5px; font-weight: 800; color: var(--ink-3); letter-spacing: 0.03em; white-space: nowrap; }
+
+  .wires { left: 0; top: 0; width: 1000px; height: 400px; pointer-events: none; overflow: visible; }
+  .wires path { fill: none; stroke: var(--ink-3); stroke-width: 1.5; }
+  .cc { left: 634px; top: 184px; width: 32px; height: 32px; border-radius: 50%; background: #fff; border: 1.5px solid var(--ink-2);
+        display: grid; place-items: center; font-size: 14px; font-weight: 800; color: var(--ink); }
+  .cc-lab { left: 574px; top: 192px; width: 54px; text-align: right; font-size: 11.5px; font-weight: 800; color: var(--ink-3); letter-spacing: 0.03em; }
+
+  .ans { left: 700px; top: 40px; width: 284px; height: 116px; border-radius: 12px; background: #fbf4f8; border: 1px solid #ecd3df; }
+  .ans > * { position: absolute; }
+  .ans .name { left: 14px; top: 10px; font-size: 16.5px; font-weight: 800; color: var(--accent); }
+  .ans .txt { left: 14px; top: 38px; width: 258px; font-size: 15.5px; line-height: 1.45; color: var(--ink); }
+  .llm { left: 700px; top: 178px; width: 284px; height: 44px; border-radius: 10px; background: #fff; border: 1.5px solid var(--accent);
+         display: grid; place-items: center; font-size: 16px; font-weight: 800; color: var(--accent); }
+  .llm-on { left: 700px; top: 178px; width: 284px; height: 44px; border-radius: 10px; background: var(--accent-soft); border: 1.5px solid var(--accent); }
+  .qchip { left: 700px; top: 244px; width: 284px; height: 30px; border-radius: 8px; background: #fff; border: 1px dashed var(--ink-3);
+           display: grid; place-items: center; font-size: 13.5px; font-weight: 700; color: var(--ink-2); }
+  .vup { width: 0; border-left: 1.5px solid var(--ink-3); }
+  .vup::after { content: ""; position: absolute; left: -5px; top: -2px; border: 4px solid transparent; border-bottom: 6px solid var(--ink-3); border-top: 0; }
+  .evals { left: 700px; top: 292px; width: 284px; font-size: 13.5px; line-height: 1.4; color: var(--ink-2); }
+  .evals .lbl { display: block; font-size: 11.5px; margin-bottom: 2px; }
+  .evals b { color: var(--ink); font-weight: 700; }
+
+  .badge { right: 16px; top: 370px; display: flex; gap: 8px; }
+  .badge .chip { font-size: 13.5px; }
+  .scale-note { left: 20px; top: 375px; font-size: 12px; color: var(--ink-3); }
+</style>
+</head>
+<body>
+<div class="stage" data-loop="11" role="img"
+     aria-label="VideoGPT+ answers 'In the video, how is the avocado prevented from browning after mashing?'. The video is split into segments. An image encoder turns every frame into a detailed spatial feature map, and a video encoder turns each segment into a temporal feature map. Both are pooled two by two, so the token grids shrink, then concatenated and passed to the LLM, which answers 'Lemon juice is added to the mashed avocado to keep it fresh.'">
+
+  <div class="query"><span class="lbl">Question</span>“In the video, <b>how is the avocado prevented from browning</b> after mashing?”</div>
+
+  <!-- ===== Stream 1: image encoder, frame by frame ===== -->
+  <div class="lane img">
+    <div class="meta">
+      <div class="name">Image encoder</div>
+      <div class="sub">every frame, on its own</div>
+      <div class="role">→ fine <b>spatial detail</b></div>
+    </div>
+
+    <span class="colcap" style="left:182px">frames</span>
+    <span class="colcap" style="left:340px">feature tokens</span>
+    <span class="colcap" style="left:474px">pooled</span>
+
+    <div class="card" style="left:182px;top:24px"><img class="frame" src="img/videogpt-plus/avocado.jpg" alt=""><span class="tag">frame</span></div>
+    <div class="card" style="left:182px;top:90px"><img class="frame" src="img/videogpt-plus/toast.jpg" alt=""><span class="tag">frame</span></div>
+
+    <div class="arr wipe" data-cue="0.5" style="left:286px;top:54px;width:44px"></div>
+    <div class="arr wipe" data-cue="0.75" style="left:286px;top:120px;width:44px"></div>
+    <span class="alab mid" data-cue="0.5" style="left:276px">encode</span>
+
+    <div class="feat pop" data-cue="0.7"  style="left:340px;top:24px"><img src="img/videogpt-plus/avocado.jpg" alt=""><span class="grid"></span></div>
+    <div class="feat pop" data-cue="0.95" style="left:340px;top:90px"><img src="img/videogpt-plus/toast.jpg" alt=""><span class="grid"></span></div>
+
+    <div class="arr wipe" data-cue="2.7" style="left:410px;top:54px;width:64px"></div>
+    <div class="arr wipe" data-cue="2.7" style="left:410px;top:120px;width:64px"></div>
+    <span class="alab mid" data-cue="2.7" style="left:410px">pool 2×2</span>
+
+    <div class="feat ghost" data-cue="2.8" data-off="3.45" style="left:340px;top:24px"><img src="img/videogpt-plus/avocado.jpg" alt=""><span class="grid"></span></div>
+    <div class="feat ghost" data-cue="2.8" data-off="3.45" style="left:340px;top:90px"><img src="img/videogpt-plus/toast.jpg" alt=""><span class="grid"></span></div>
+
+    <div class="feat sm pop" data-cue="3.35" style="left:484px;top:39px"><img src="img/videogpt-plus/avocado.jpg" alt=""><span class="grid"></span></div>
+    <div class="feat sm pop" data-cue="3.35" style="left:484px;top:105px"><img src="img/videogpt-plus/toast.jpg" alt=""><span class="grid"></span></div>
+  </div>
+
+  <!-- ===== Stream 2: video encoder, segment by segment ===== -->
+  <div class="lane vid">
+    <div class="meta">
+      <div class="name">Video encoder</div>
+      <div class="sub">each segment as a clip</div>
+      <div class="role">→ global <b>temporal context</b></div>
+    </div>
+
+    <div class="card" style="left:182px;top:24px">
+      <span class="back" style="left:8px;top:-8px"></span><span class="back" style="left:4px;top:-4px"></span>
+      <img class="frame" src="img/videogpt-plus/avocado.jpg" alt=""><span class="tag">segment</span></div>
+    <div class="card" style="left:182px;top:90px">
+      <span class="back" style="left:8px;top:-8px"></span><span class="back" style="left:4px;top:-4px"></span>
+      <img class="frame" src="img/videogpt-plus/toast.jpg" alt=""><span class="tag">segment</span></div>
+
+    <div class="arr wipe" data-cue="1.4" style="left:286px;top:54px;width:44px"></div>
+    <div class="arr wipe" data-cue="1.65" style="left:286px;top:120px;width:44px"></div>
+    <span class="alab mid" data-cue="1.4" style="left:276px">encode</span>
+
+    <div class="feat pop" data-cue="1.6"  style="left:340px;top:24px"><span class="fback" style="left:6px;top:-6px;width:60px;height:60px"></span><span class="fback" style="left:3px;top:-3px;width:60px;height:60px"></span><img src="img/videogpt-plus/avocado.jpg" alt=""><span class="grid"></span></div>
+    <div class="feat pop" data-cue="1.85" style="left:340px;top:90px"><span class="fback" style="left:6px;top:-6px;width:60px;height:60px"></span><span class="fback" style="left:3px;top:-3px;width:60px;height:60px"></span><img src="img/videogpt-plus/toast.jpg" alt=""><span class="grid"></span></div>
+
+    <div class="arr wipe" data-cue="2.7" style="left:410px;top:54px;width:64px"></div>
+    <div class="arr wipe" data-cue="2.7" style="left:410px;top:120px;width:64px"></div>
+    <span class="alab mid" data-cue="2.7" style="left:410px">pool 2×2</span>
+
+    <div class="feat ghost" data-cue="2.8" data-off="3.45" style="left:340px;top:24px"><img src="img/videogpt-plus/avocado.jpg" alt=""><span class="grid"></span></div>
+    <div class="feat ghost" data-cue="2.8" data-off="3.45" style="left:340px;top:90px"><img src="img/videogpt-plus/toast.jpg" alt=""><span class="grid"></span></div>
+
+    <div class="feat sm pop" data-cue="3.35" style="left:484px;top:39px"><span class="fback" style="left:4px;top:-4px;width:30px;height:30px"></span><span class="fback" style="left:2px;top:-2px;width:30px;height:30px"></span><img src="img/videogpt-plus/avocado.jpg" alt=""><span class="grid"></span></div>
+    <div class="feat sm pop" data-cue="3.35" style="left:484px;top:105px"><span class="fback" style="left:4px;top:-4px;width:30px;height:30px"></span><span class="fback" style="left:2px;top:-2px;width:30px;height:30px"></span><img src="img/videogpt-plus/toast.jpg" alt=""><span class="grid"></span></div>
+  </div>
+
+  <!-- ===== merge: concatenate both token sets, into the LLM ===== -->
+  <svg class="wires" viewBox="0 0 1000 400" aria-hidden="true">
+    <g data-cue="4.0">
+      <path d="M538 94 H590 M538 160 H590 M590 94 V160 M590 127 H650 V184"/>
+      <path d="M538 258 H590 M538 324 H590 M590 258 V324 M590 291 H650 V216"/>
+    </g>
+  </svg>
+  <div class="cc pop" data-cue="4.3">C</div>
+  <div class="cc-lab" data-cue="4.3">concat</div>
+  <div class="arr wipe" data-cue="4.6" style="left:666px;top:200px;width:34px"></div>
+
+  <div class="llm">LLM</div>
+  <div class="llm-on" data-cue="4.75"></div>
+  <div class="llm" style="background:transparent" data-cue="4.75">LLM</div>
+  <div class="vup" style="left:842px;top:224px;height:20px"></div>
+  <div class="qchip">+ the question</div>
+  <div class="vup" data-cue="5.3" style="left:842px;top:158px;height:20px"></div>
+
+  <div class="ans rise" data-cue="5.3">
+    <div class="name">VideoGPT+</div>
+    <div class="txt"><span data-cue="5.5">Lemon</span> <span data-cue="5.65">juice</span> <span data-cue="5.8">is</span> <span data-cue="5.95">added</span> <span data-cue="6.1">to</span> <span data-cue="6.25">the</span> <span data-cue="6.4">mashed</span> <span data-cue="6.55">avocado</span> <span data-cue="6.7">to</span> <span data-cue="6.85">keep</span> <span data-cue="7.0">it</span> <span data-cue="7.15">fresh.</span></div>
+  </div>
+
+  <div class="evals"><span class="lbl">Improves on</span><b>VCGBench</b> · <b>MVBench</b><br>zero-shot question answering</div>
+
+  <div class="badge rise" data-cue="7.6">
+    <span class="chip accent">112K video-instruction set</span>
+    <span class="chip soft">VCGBench-Diverse · 18 categories · 4,354 QA</span>
+  </div>
+</div>
+<script src="viz.js"></script>
+</body>
+</html>

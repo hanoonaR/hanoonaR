@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PTD Explainer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;700&display=swap">
+<link rel="stylesheet" href="../viz.css">
+<style>.stage { width: 1600px; height: 640px; } html, body { background: #f4f5f2; }</style>
+</head>
+<body>
+<!-- Hanoona's "PTD Explainer" exactly as exported from Claude Design.
+     ptd.js = ptd-piece.jsx compiled as-is (plus one start line); seq/ holds the original frames.
+     ../dc-lite.js stands in for the Claude Design runtime; ../viz.js handles play/pause and reduced motion. -->
+<div class="stage" data-loop="27.4" data-rest="14" role="img"
+     aria-label="Parallel Tube Decoding explainer: four decoding strategies and their rounds per tube; a race where PTD finishes the tube in 2 rounds while sequential and quantized decoders are still running; a qualitative comparison with STVG-R1 and DEViL; and results: 79 times lower latency and 92 times more boxes per second, with better grounding."></div>
+<script>
+  window.OM_SCENES = '[{"name":"Title","dur":3.8,"desc":"Standalone title slide with the main message"},{"name":"Strategies","dur":9.5,"desc":"Teaser plays the four decoding strategies; rounds per tube build on the left"},{"name":"Race","dur":5,"desc":"Same query, three decoders: PTD finishes in 2 rounds"},{"name":"Qualitative","dur":3.6,"desc":"Playing-card comparison against STVG-R1 and DEViL"},{"name":"Results","dur":5.5,"desc":"Speed (79x lower latency) and efficiency (92x boxes/sec) bars, accuracy line, then back to the title"}]';
+  window.OM_PLAYBACK = '{"mode":"loop"}';
+  window.TWEAK_DEFAULTS = {"motionEditor":true,"theme":"light"};
+</script>
+<script src="../vendor/react.production.min.js"></script>
+<script src="../vendor/react-dom.production.min.js"></script>
+<script src="../dc-lite.js"></script>
+<script src="ptd.js"></script>
+<script>dcMount();</script>
+<script src="../viz.js"></script>
+</body>
+</html>

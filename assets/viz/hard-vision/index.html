@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frontier Vision Clip</title>
+<style>
+@font-face { font-family: "Optimistic Web"; src: url("assets/fonts/optimistic-variable.ttf") format("truetype"); font-weight: 300 800; }
+@font-face { font-family: "Optimistic Display"; src: url("assets/fonts/optimistic-display-bold.ttf") format("truetype"); font-weight: 700; }
+a { color: #1a6599; } a:hover { color: #134f78; }
+</style>
+<link rel="stylesheet" href="../viz.css">
+<style>.stage { width: 1600px; height: 640px; } html, body { background: #f5f7fa; }</style>
+</head>
+<body>
+<!-- Hanoona's "Frontier Vision Clip" exactly as exported from Claude Design.
+     fv.js = fv-piece.jsx compiled as-is (plus one start line); assets/ and sheets/ are the original files.
+     ../dc-lite.js stands in for the Claude Design runtime; ../viz.js handles hover-to-play and reduced motion. -->
+<div class="stage" data-loop="65.5" data-rest="5.5" role="img"
+     aria-label="Hard Vision, Easy Vision explainer: six frontier models evaluated on 34 capabilities and 55 benchmarks; a tour of the capability areas; GPT-6 Astra outputs for car detection, referring segmentation, depth estimation and video object tracking; a maturity-tier chart of the best generalist relative to the reference; and the finding: semantic competence versus perceptual precision."></div>
+<script>
+  window.OM_SCENES = '[{"name":"Title","dur":6,"desc":"Paper title, then the research question builds word by word"},{"name":"Study","dur":5,"desc":"Six frontier models, 34 capabilities, 55 benchmarks; compared with each other, specialists and humans"},{"name":"Coverage","dur":13,"desc":"One panel per capability area with the project-page example tiles"},{"name":"Detection","dur":5,"desc":"Sequential box output on 146 cars"},{"name":"Segmentation","dur":7,"desc":"Referring segmentation of the rabbit tattoo, step by step"},{"name":"Depth","dur":8.5,"desc":"Depth map built as a program, step by step"},{"name":"VideoSeg","dur":6,"desc":"Gold-fish tracking from a first-frame mask"},{"name":"Tiers","dur":7,"desc":"Maturity-tier bar chart: best generalist as a percentage of the reference"},{"name":"Finding","dur":6.5,"desc":"Semantic competence vs perceptual precision as two lists of points"},{"name":"Outro","dur":1.5,"desc":"Fades to the blank paper background so the loop restarts cleanly"}]';
+  window.OM_PLAYBACK = '{"mode":"loop"}';
+</script>
+<script src="../vendor/react.production.min.js"></script>
+<script src="../vendor/react-dom.production.min.js"></script>
+<script src="../dc-lite.js"></script>
+<script src="fv.js"></script>
+<script>dcMount();</script>
+<script src="../viz.js"></script>
+</body>
+</html>

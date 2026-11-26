@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Video-CoM Clip</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../viz.css">
+<style>.stage { width: 1600px; height: 640px; } html, body { background: #f4f3ef; }</style>
+</head>
+<body>
+<!-- Hanoona's "Video-CoM Clip" (Video-CoM Explanation Animation) exactly as exported from Claude Design.
+     clip.js = videocom.jsx compiled as-is (plus one start line); img/ holds the original frames.
+     ../dc-lite.js stands in for the Claude Design runtime; ../viz.js handles play/pause and reduced motion. -->
+<div class="stage" data-loop="32.4" data-rest="4" data-hint="bottom-right" role="img"
+     aria-label="Video-CoM explainer: thinking about videos gives way to thinking with videos; the question about the cup prices; Video-R1 reasons in text and picks the wrong answer C; Video-CoM calls FIND-SEGMENT and segment 3 unfolds into its frames, FIND-FRAME enlarges frame 2475, SPATIAL-ZOOM boxes the price sticker and answers D; RA-GRPO scores every manipulation step plus the final answer; title card with three contributions."></div>
+<script>
+  window.OM_SCENES = '[{"name":"Intro","dur":5.6,"desc":"Thinking about videos gives way to thinking with videos, then three action points appear"},{"name":"Question","dur":3.2,"desc":"The question types in and the video segments slide in as a filmstrip"},{"name":"ThinkAbout","dur":3.6,"desc":"Video-R1 reasons in text from a one-time encoding and picks the wrong answer C"},{"name":"FindSegment","dur":4.4,"nat":3.4,"desc":"Video-CoM calls FIND-SEGMENT; segment 3 lifts and unfolds into its frames"},{"name":"FindFrame","dur":3.8,"nat":2.8,"desc":"FIND-FRAME scans the frames and enlarges frame 2475"},{"name":"SpatialZoom","dur":3.6,"desc":"SPATIAL-ZOOM boxes the price sticker, zooms in and answers D"},{"name":"Rewards","dur":4,"desc":"RA-GRPO scores every manipulation step plus the final answer"},{"name":"Outro","dur":4.2,"desc":"Title card with three main contributions, then fade to the opening frame for a seamless loop"}]';
+  window.OM_PLAYBACK = '{"mode":"loop"}';
+  window.TWEAK_DEFAULTS = {"theme":"light","chapterLabels":true,"motionEditor":true};
+</script>
+<script src="../vendor/react.production.min.js"></script>
+<script src="../vendor/react-dom.production.min.js"></script>
+<script src="../dc-lite.js"></script>
+<script src="clip.js"></script>
+<script>dcMount();</script>
+<script src="../viz.js"></script>
+</body>
+</html>

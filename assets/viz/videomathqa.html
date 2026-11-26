@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VideoMathQA: needles across time</title>
+<link rel="stylesheet" href="viz.css">
+<style>
+  /* One benchmark question over a 5-minute video. The clues ("needles") are four charts
+     scattered through the video's frames and on-screen text; the annotated steps combine them.
+     Canvas: 1000 x 400 (5:2). Timeline: x 140..952 inside the panel (812 px = 5 min). */
+  .stage { width: 1000px; height: 400px; }
+  .lbl { font-size: 12.5px; }
+
+  .query { left: 18px; top: 9px; width: 964px; font-size: 13.5px; line-height: 1.38; color: var(--ink); }
+  .query .lbl { margin-right: 10px; }
+
+  .panel { left: 16px; top: 54px; width: 968px; height: 162px; }
+  .panel > * { position: absolute; }
+  .plbl { left: 14px; top: 6px; white-space: nowrap; }
+  .tlbl { left: 14px; font-size: 12.5px; font-weight: 800; color: var(--ink-3); white-space: nowrap; }
+
+  .ctx { top: 4px; font-size: 13px; color: var(--ink-3); white-space: nowrap; border-bottom: 1.5px solid #cfc8bf; padding-bottom: 1px; }
+  .ctx b { color: var(--ink-2); font-weight: 800; }
+  .ctx.key { color: var(--ink-2); border-bottom-color: var(--detect); }
+
+  .film { left: 140px; top: 27px; width: 812px; height: 56px; border-radius: 4px;
+          background: repeating-linear-gradient(90deg, #ebe6df 0 10px, #f8f6f2 10px 13px); }
+  .thumb { top: 27px; width: 99px; height: 56px; }
+  .thumb img { width: 99px; height: 56px; border-radius: 4px; }
+  .thumb.dim img { opacity: 0.55; }
+  .ring { position: absolute; inset: -3px; border-radius: 6px; border: 2px solid var(--detect);
+          box-shadow: 0 0 0 1px rgba(255,255,255,0.8), 0 0 10px rgba(255,126,182,0.6); }
+
+  .texttrack { left: 140px; top: 89px; width: 812px; height: 46px; border-radius: 4px;
+               background: repeating-linear-gradient(90deg, transparent 0 4px, #ebe6df 4px 24px, transparent 24px 33px) 0 10px / 100% 3px no-repeat,
+                           repeating-linear-gradient(90deg, transparent 0 13px, #ebe6df 13px 29px, transparent 29px 37px) 0 22px / 100% 3px no-repeat,
+                           repeating-linear-gradient(90deg, transparent 0 8px, #ebe6df 8px 21px, transparent 21px 31px) 0 34px / 100% 3px no-repeat; }
+  .gdptext { left: 155px; top: 96px; width: 203px; text-align: center; font-size: 12px; line-height: 1.35; color: var(--ink-3);
+             background: var(--tint); }
+  .note { top: 89px; width: 107px; height: 46px; border-radius: 6px; background: #fff; border: 1.5px solid var(--detect);
+          font-size: 12.5px; line-height: 14px; font-weight: 800; color: var(--ink); padding: 1px 0 0 6px; white-space: nowrap; overflow: hidden; }
+  .note .t { font-size: 12px; font-weight: 600; color: var(--ink-3); letter-spacing: -0.01em; }
+  .note .v { position: relative; display: inline-block; padding: 0 2px; margin-left: -2px; border-radius: 3px; }
+  .note .v > i { position: absolute; inset: 0; border-radius: 3px; z-index: -1; }
+  .note { isolation: isolate; }
+  .us > i { background: var(--blue-soft); box-shadow: inset 0 -1.5px 0 var(--blue); }
+  .es > i { background: var(--amber-soft); box-shadow: inset 0 -1.5px 0 var(--amber); }
+
+  .speech { left: 178px; top: 141px; width: 736px; height: 14px; fill: #d6cfc6; }
+  .ends { top: 140px; font-size: 12px; font-weight: 700; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+  .ph { top: 23px; width: 2px; height: 116px; background: var(--accent); border-radius: 1px; z-index: 3;
+        left: calc(139px + 812px * clamp(0, (var(--t, 99) - 0.2) / 2.4, 1)); }
+  .ph::before { content: ""; position: absolute; left: -4px; top: -1px; border: 5px solid transparent; border-top: 6px solid var(--accent); border-bottom: 0; }
+
+  .wires { left: 0; top: 0; width: 1000px; height: 400px; pointer-events: none; overflow: visible; }
+
+  /* ---- annotated steps ---- */
+  .card { left: 16px; top: 224px; width: 968px; height: 140px; border-radius: 12px; border: 1px solid #ecd3df; background: #fbf4f8; }
+  .card > * { position: absolute; }
+  .chead { left: 16px; top: 9px; white-space: nowrap; display: flex; align-items: baseline; gap: 10px; }
+  .chead .sub { font-size: 13px; color: var(--ink-3); }
+  .step { left: 16px; font-size: 13.5px; color: var(--ink-2); white-space: nowrap; }
+  .step .n { display: inline-block; width: 22px; font-weight: 800; color: var(--accent); }
+  .step b { color: var(--ink); font-weight: 800; }
+  .step .cu { color: var(--blue); font-weight: 700; }
+  .step .ce { color: #8a5a12; font-weight: 700; }
+  .answer { left: 16px; top: 106px; display: flex; align-items: center; gap: 6px; padding: 3px 12px; border-radius: 999px;
+            background: var(--green-soft); border: 1.5px solid var(--green); color: #1f6435; font-size: 14px; font-weight: 800; white-space: nowrap; }
+  .aside { left: 268px; top: 111px; font-size: 12.5px; color: var(--ink-3); white-space: nowrap; }
+  .card .fine { right: 16px; top: 112px; font-size: 12px; color: var(--ink-3); white-space: nowrap; }
+
+  .scale-note { left: 18px; top: 374px; font-size: 12px; color: var(--ink-3); }
+  .badge { right: 16px; top: 369px; display: flex; gap: 8px; }
+  .badge .chip { font-size: 13.5px; }
+</style>
+</head>
+<body>
+<div class="stage" data-loop="11" role="img"
+     aria-label="VideoMathQA: a needle-in-a-multimodal-haystack benchmark. Over a 5-minute video with frames, on-screen text and speech, the clues for one question are four bar charts toward the middle of the video: U.S. and Spain costs of angioplasty, OxyContin, hip replacement and C-section. Annotated steps add the U.S. costs to 77,065 dollars and the Spain costs to 17,036 dollars, and take the difference, 60,029 dollars: answer A. The benchmark covers 10 math domains, videos from 10 seconds to over an hour, and 3 reasoning types.">
+
+  <div class="query"><span class="lbl">Question</span>Using data from the video on the cost of various healthcare procedures, if someone in the U.S. underwent all four treatments shown, what would be the total cost, and how much more would that be compared to … the same procedures in Spain? …</div>
+
+  <!-- ===== the haystack: one 5-minute video, three streams ===== -->
+  <div class="panel">
+    <div class="lbl plbl">5-min video</div>
+    <div class="tlbl" style="top:46px">frames</div>
+    <div class="tlbl" style="top:103px">on-screen text</div>
+    <div class="tlbl" style="top:140px">speech</div>
+
+    <div class="ctx" data-cue="0.35" style="left:155px;width:203px"><b>early:</b> share of GDP</div>
+    <div class="ctx key" data-cue="0.9" style="left:378px;width:425px"><b>toward the middle:</b> cost of individual treatments</div>
+
+    <div class="film"></div>
+    <div class="thumb dim" style="left:155px"><img class="frame" src="img/videomathqa/gdp1.jpg" alt=""></div>
+    <div class="thumb dim" style="left:259px"><img class="frame" src="img/videomathqa/gdp2.jpg" alt=""></div>
+    <div class="thumb" style="left:378px"><img class="frame" src="img/videomathqa/angio.jpg" alt=""><span class="ring pop" data-cue="1.05"></span></div>
+    <div class="thumb" style="left:487px"><img class="frame" src="img/videomathqa/oxy.jpg" alt=""><span class="ring pop" data-cue="1.37"></span></div>
+    <div class="thumb" style="left:595px"><img class="frame" src="img/videomathqa/hip.jpg" alt=""><span class="ring pop" data-cue="1.69"></span></div>
+    <div class="thumb" style="left:704px"><img class="frame" src="img/videomathqa/csec.jpg" alt=""><span class="ring pop" data-cue="2.02"></span></div>
+
+    <div class="texttrack"></div>
+    <div class="gdptext">Health spending as<br>a share of GDP</div>
+    <div class="note pop" data-cue="1.15" style="left:374px"><span class="t">Angioplasty</span><br><span class="v us"><i data-cue="3.0"></i>U.S. $31.6k</span><br><span class="v es"><i data-cue="4.1"></i>Spain $7.8k</span></div>
+    <div class="note pop" data-cue="1.45" style="left:483px"><span class="t">OxyContin</span><br><span class="v us"><i data-cue="3.0"></i>U.S. $265</span><br><span class="v es"><i data-cue="4.1"></i>Spain $36</span></div>
+    <div class="note pop" data-cue="1.75" style="left:591px"><span class="t">Hip replacement</span><br><span class="v us"><i data-cue="3.0"></i>U.S. $29.1k</span><br><span class="v es"><i data-cue="4.1"></i>Spain $6.8k</span></div>
+    <div class="note pop" data-cue="2.05" style="left:700px"><span class="t">C-section</span><br><span class="v us"><i data-cue="3.0"></i>U.S. $16.1k</span><br><span class="v es"><i data-cue="4.1"></i>Spain $2.4k</span></div>
+
+    <svg class="speech" viewBox="0 0 656 14" preserveAspectRatio="none" aria-hidden="true"><rect x="0" y="5.8" width="2" height="2.5"/><rect x="5" y="2.8" width="2" height="8.4"/><rect x="10" y="3.1" width="2" height="7.8"/><rect x="15" y="2.8" width="2" height="8.4"/><rect x="20" y="4.8" width="2" height="4.3"/><rect x="25" y="4.6" width="2" height="4.8"/><rect x="30" y="5.4" width="2" height="3.2"/><rect x="35" y="5.1" width="2" height="3.8"/><rect x="40" y="4.0" width="2" height="6.1"/><rect x="45" y="3.2" width="2" height="7.7"/><rect x="50" y="5.1" width="2" height="3.8"/><rect x="55" y="3.4" width="2" height="7.1"/><rect x="60" y="2.3" width="2" height="9.3"/><rect x="65" y="1.5" width="2" height="10.9"/><rect x="70" y="4.8" width="2" height="4.4"/><rect x="75" y="5.1" width="2" height="3.9"/><rect x="80" y="4.8" width="2" height="4.4"/><rect x="85" y="4.1" width="2" height="5.8"/><rect x="90" y="4.9" width="2" height="4.1"/><rect x="95" y="4.5" width="2" height="5.0"/><rect x="100" y="5.2" width="2" height="3.6"/><rect x="105" y="4.6" width="2" height="4.8"/><rect x="110" y="2.0" width="2" height="10.0"/><rect x="115" y="1.8" width="2" height="10.3"/><rect x="120" y="4.7" width="2" height="4.6"/><rect x="125" y="5.6" width="2" height="2.9"/><rect x="130" y="3.1" width="2" height="7.8"/><rect x="135" y="2.6" width="2" height="8.7"/><rect x="140" y="5.2" width="2" height="3.5"/><rect x="145" y="5.4" width="2" height="3.2"/><rect x="150" y="5.4" width="2" height="3.2"/><rect x="155" y="5.6" width="2" height="2.7"/><rect x="160" y="2.7" width="2" height="8.5"/><rect x="165" y="3.3" width="2" height="7.5"/><rect x="170" y="4.4" width="2" height="5.2"/><rect x="175" y="5.6" width="2" height="2.8"/><rect x="180" y="2.0" width="2" height="10.0"/><rect x="185" y="2.2" width="2" height="9.5"/><rect x="190" y="3.6" width="2" height="6.8"/><rect x="195" y="4.5" width="2" height="5.0"/><rect x="200" y="4.3" width="2" height="5.4"/><rect x="205" y="5.1" width="2" height="3.9"/><rect x="210" y="4.7" width="2" height="4.6"/><rect x="215" y="5.0" width="2" height="4.1"/><rect x="220" y="4.1" width="2" height="5.8"/><rect x="225" y="5.2" width="2" height="3.6"/><rect x="230" y="2.2" width="2" height="9.5"/><rect x="235" y="2.5" width="2" height="9.0"/><rect x="240" y="2.3" width="2" height="9.4"/><rect x="245" y="4.6" width="2" height="4.9"/><rect x="250" y="3.7" width="2" height="6.5"/><rect x="255" y="4.3" width="2" height="5.5"/><rect x="260" y="4.2" width="2" height="5.6"/><rect x="265" y="5.3" width="2" height="3.3"/><rect x="270" y="4.3" width="2" height="5.3"/><rect x="275" y="5.0" width="2" height="4.0"/><rect x="280" y="3.8" width="2" height="6.5"/><rect x="285" y="3.0" width="2" height="8.0"/><rect x="290" y="2.0" width="2" height="10.0"/><rect x="295" y="5.2" width="2" height="3.6"/><rect x="300" y="4.0" width="2" height="6.1"/><rect x="305" y="3.2" width="2" height="7.6"/><rect x="310" y="2.1" width="2" height="9.8"/><rect x="315" y="4.7" width="2" height="4.6"/><rect x="320" y="5.2" width="2" height="3.6"/><rect x="325" y="5.6" width="2" height="2.9"/><rect x="330" y="5.6" width="2" height="2.8"/><rect x="335" y="3.8" width="2" height="6.5"/><rect x="340" y="3.1" width="2" height="7.8"/><rect x="345" y="5.7" width="2" height="2.7"/><rect x="350" y="4.7" width="2" height="4.6"/><rect x="355" y="2.2" width="2" height="9.5"/><rect x="360" y="1.3" width="2" height="11.3"/><rect x="365" y="4.2" width="2" height="5.6"/><rect x="370" y="5.3" width="2" height="3.4"/><rect x="375" y="4.6" width="2" height="4.8"/><rect x="380" y="3.9" width="2" height="6.3"/><rect x="385" y="5.0" width="2" height="4.0"/><rect x="390" y="5.0" width="2" height="4.1"/><rect x="395" y="5.5" width="2" height="3.0"/><rect x="400" y="5.4" width="2" height="3.3"/><rect x="405" y="2.1" width="2" height="9.9"/><rect x="410" y="2.0" width="2" height="9.9"/><rect x="415" y="3.7" width="2" height="6.7"/><rect x="420" y="4.9" width="2" height="4.3"/><rect x="425" y="3.2" width="2" height="7.6"/><rect x="430" y="2.9" width="2" height="8.1"/><rect x="435" y="4.6" width="2" height="4.8"/><rect x="440" y="4.8" width="2" height="4.4"/><rect x="445" y="4.9" width="2" height="4.2"/><rect x="450" y="5.7" width="2" height="2.5"/><rect x="455" y="3.2" width="2" height="7.6"/><rect x="460" y="3.5" width="2" height="6.9"/><rect x="465" y="3.3" width="2" height="7.5"/><rect x="470" y="5.2" width="2" height="3.5"/><rect x="475" y="2.6" width="2" height="8.8"/><rect x="480" y="2.6" width="2" height="8.7"/><rect x="485" y="2.6" width="2" height="8.7"/><rect x="490" y="4.0" width="2" height="6.0"/><rect x="495" y="4.5" width="2" height="5.0"/><rect x="500" y="5.3" width="2" height="3.3"/><rect x="505" y="5.5" width="2" height="3.0"/><rect x="510" y="5.0" width="2" height="4.0"/><rect x="515" y="3.5" width="2" height="7.0"/><rect x="520" y="5.6" width="2" height="2.9"/><rect x="525" y="3.3" width="2" height="7.4"/><rect x="530" y="2.7" width="2" height="8.7"/><rect x="535" y="1.4" width="2" height="11.1"/><rect x="540" y="4.1" width="2" height="5.7"/><rect x="545" y="4.7" width="2" height="4.6"/><rect x="550" y="4.5" width="2" height="5.0"/><rect x="555" y="3.5" width="2" height="7.1"/><rect x="560" y="5.4" width="2" height="3.3"/><rect x="565" y="4.6" width="2" height="4.9"/><rect x="570" y="5.3" width="2" height="3.4"/><rect x="575" y="4.8" width="2" height="4.3"/><rect x="580" y="2.9" width="2" height="8.2"/><rect x="585" y="1.7" width="2" height="10.5"/><rect x="590" y="4.6" width="2" height="4.8"/><rect x="595" y="5.3" width="2" height="3.4"/><rect x="600" y="3.3" width="2" height="7.4"/><rect x="605" y="1.8" width="2" height="10.3"/><rect x="610" y="4.4" width="2" height="5.1"/><rect x="615" y="5.4" width="2" height="3.2"/><rect x="620" y="5.6" width="2" height="2.7"/><rect x="625" y="5.1" width="2" height="3.8"/><rect x="630" y="3.7" width="2" height="6.6"/><rect x="635" y="3.4" width="2" height="7.3"/><rect x="640" y="4.8" width="2" height="4.4"/><rect x="645" y="5.7" width="2" height="2.6"/><rect x="650" y="2.4" width="2" height="9.3"/></svg>
+    <div class="ends" style="left:140px">0:00</div>
+    <div class="ends" style="left:925px">5:00</div>
+    <div class="ph"></div>
+  </div>
+
+  <svg class="wires" viewBox="0 0 1000 400" aria-hidden="true">
+    <g stroke="var(--detect)" stroke-width="1.5" stroke-dasharray="3 3" fill="none">
+      <path class="drop" data-cue="2.4" d="M 443.5 191 L 443.5 224"/>
+      <path class="drop" data-cue="2.4" d="M 552.5 191 L 552.5 224"/>
+      <path class="drop" data-cue="2.4" d="M 660.5 191 L 660.5 224"/>
+      <path class="drop" data-cue="2.4" d="M 769.5 191 L 769.5 224"/>
+    </g>
+  </svg>
+
+  <!-- ===== the annotated multi-step reasoning ===== -->
+  <div class="card">
+    <div class="chead"><span class="lbl">Annotated reasoning steps</span><span class="sub">Problem Focused · Chart Reading</span></div>
+    <div class="fine" style="top:11px">graduate-level experts · over 920 man-hours of annotation</div>
+    <div class="step wipe" data-cue="3.0" style="top:34px"><span class="n">4)</span>Total healthcare cost in the U.S. for these treatments: <span class="cu">$31,600 + $29,100 + $16,100 + $265</span> = <b>$77,065</b>.</div>
+    <div class="step wipe" data-cue="4.1" style="top:58px"><span class="n">6)</span>Total healthcare cost in Spain for the same treatments: <span class="ce">$7,800 + $6,800 + $2,400 + $36</span> = <b>$17,036</b>.</div>
+    <div class="step wipe" data-cue="5.2" style="top:82px"><span class="n">7)</span>Difference in cost between U.S. and Spain: <b>$77,065</b> - <b>$17,036</b> = <b>$60,029</b>.</div>
+    <div class="answer pop" data-cue="6.1">✓ Answer: A) 77065 and 60029</div>
+    <div class="aside rise" data-cue="6.4">steps 1–3 and 5 find and read the four charts</div>
+  </div>
+
+  <div class="scale-note"><i>Needle-in-a-multimodal-haystack</i> across time: visual, text and audio</div>
+  <div class="badge rise" data-cue="7.0">
+    <span class="chip accent">10 math domains</span>
+    <span class="chip soft">videos 10 s to 1 h+</span>
+    <span class="chip soft">3 reasoning types</span>
+  </div>
+</div>
+<script src="viz.js"></script>
+</body>
+</html>

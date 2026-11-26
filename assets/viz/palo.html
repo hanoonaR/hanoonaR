@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PALO: one multimodal model for ten languages</title>
+<link rel="stylesheet" href="viz.css">
+<style>
+  /* Left: one image, a question and its answer; the language cycles through all ten (native names
+     only, text drawn as placeholder lines, right-aligned for Arabic and Urdu). Below: how the
+     training data is made. Right: speakers per language as printed in the paper's Figure 1, to scale,
+     filling in step with the language shown, then the running total toward ~5B. Canvas: 1000 x 400 (5:2). */
+
+  .stage { width: 1000px; height: 400px; }
+
+  .query { left: 20px; top: 12px; width: 960px; font-size: 15px; color: var(--ink-2); white-space: nowrap; }
+  .query .lbl { margin-right: 8px; font-size: 12px; }
+  .query b { color: var(--ink); font-weight: 700; }
+
+  /* ---- chat ---- */
+  .chat { left: 16px; top: 42px; width: 360px; height: 196px; }
+  .pic { left: 28px; top: 54px; width: 132px; height: 176px; }
+  .bub { left: 172px; width: 192px; border-radius: 10px; border: 1px solid; }
+  .bub > * { position: absolute; }
+  .bub.q { top: 56px; height: 64px; background: color-mix(in srgb, var(--violet-soft) 70%, #fff); border-color: color-mix(in srgb, var(--violet) 30%, #fff); border-bottom-left-radius: 3px; }
+  .bub.a { top: 150px; height: 80px; background: var(--accent-soft); border-color: #ecd3df; border-top-left-radius: 3px; }
+  .bub .k { left: 12px; top: 8px; font-size: 14px; font-weight: 800; }
+  .bub.q .k { color: var(--violet); }
+  .bub.a .k { color: var(--accent); }
+  .cyc { left: 30px; top: 7px; width: 150px; height: 22px; }
+  .nm { position: absolute; left: 0; top: 0; font-size: 16px; font-weight: 700; line-height: 22px; color: var(--ink); white-space: nowrap; }
+  .lines { left: 12px; top: 37px; width: 168px; height: 40px; }
+  .ln { position: absolute; left: 0; top: 0; width: 168px; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
+  .ln.rtl { align-items: flex-end; }
+  .ln i { display: block; height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--ink-3) 38%, transparent); }
+  .palo { left: 172px; top: 125px; width: 192px; text-align: center; font-size: 13px; font-weight: 800; color: var(--accent); letter-spacing: 0.02em; }
+
+  /* without the animation clock, show only the last language (not all ten stacked) */
+  html:not(.anim) .cyc > :not(:last-child), html:not(.anim) .lines > :not(:last-child) { display: none; }
+
+  /* ---- data pipeline ---- */
+  .pipe { left: 16px; top: 250px; width: 360px; height: 108px; }
+  .pipe-l { left: 30px; top: 260px; font-size: 12px; }
+  .box { top: 283px; height: 44px; border-radius: 8px; border: 1.5px solid; display: grid; place-items: center; text-align: center;
+          font-size: 12.5px; font-weight: 700; line-height: 1.2; padding: 0 4px; }
+  .box.en { left: 28px; width: 98px; background: #fff; border-color: color-mix(in srgb, var(--ink-3) 45%, #fff); color: var(--ink-2); }
+  .box.llm { left: 146px; width: 100px; background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .box.out { left: 266px; width: 98px; background: #fff; border-color: color-mix(in srgb, var(--ink-3) 45%, #fff); color: var(--ink-2); }
+  .arw { top: 295px; font-size: 15px; font-weight: 800; color: var(--ink-3); }
+  .pipe-s { left: 30px; top: 335px; font-size: 12.5px; color: var(--ink-3); }
+
+  /* ---- speakers chart ---- */
+  .chart { left: 388px; top: 42px; width: 596px; height: 316px; }
+  .chart-l { left: 404px; top: 51px; font-size: 12px; }
+  .rl { left: 396px; width: 86px; text-align: right; font-size: 13.5px; font-weight: 700; line-height: 17px; color: var(--ink-2); }
+  .bar { left: 492px; height: 13px; border-radius: 3px; border: 1.5px solid; }
+  .bar.hi, .seg.hi { background: var(--green-soft); border-color: var(--green); }
+  .bar.low, .seg.low { background: var(--amber-soft); border-color: var(--amber); }
+  .val { font-size: 13px; font-weight: 800; line-height: 17px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .gain { left: 872px; font-size: 12px; font-weight: 800; line-height: 17px; padding: 0 8px; border-radius: 999px; color: #8a5a12;
+           background: var(--amber-soft); border: 1px solid color-mix(in srgb, var(--amber) 45%, #fff); }
+
+  .tot-l { left: 396px; top: 290px; width: 86px; text-align: right; font-size: 13.5px; font-weight: 800; line-height: 17px; color: var(--ink); }
+  .seg { top: 291px; height: 16px; border-radius: 2px; border: 1px solid; }
+  .tick { top: 309px; width: 1px; height: 4px; background: var(--ink-3); }
+  .tl { top: 314px; width: 30px; text-align: center; font-size: 11.5px; font-weight: 700; color: var(--ink-3); }
+  .tot-v { left: 492px; top: 333px; font-size: 14px; font-weight: 800; color: var(--accent); white-space: nowrap; }
+  .tot-v span { font-weight: 700; color: var(--ink-2); }
+
+  .scale-note { left: 20px; top: 374px; font-size: 11.5px; color: var(--ink-3); }
+  .badge { right: 16px; top: 368px; display: flex; gap: 8px; }
+</style>
+</head>
+<body>
+<div class="stage" data-loop="13" role="img"
+     aria-label="PALO answers questions about an image in ten languages: English, Chinese, Hindi, Spanish, French, Arabic, Bengali, Russian, Urdu and Japanese. Its training data is made by translating English multimodal instructions with a fine-tuned language model, semi-automatically. A bar chart of speakers per language, as printed in the paper (English 1.4 billion down to Japanese 123 million), adds up to about 5 billion people, 65 percent of the world. Hindi, Arabic, Bengali and Urdu, the underrepresented languages, see the largest gains. Models come in 1.7B, 7B and 13B sizes.">
+
+  <div class="query"><span class="lbl">PALO</span>One multimodal model that reasons about images in <b>10 languages</b></div>
+
+  <!-- ===== one image, any of ten languages ===== -->
+  <div class="chat panel"></div>
+  <img class="frame pic" src="img/palo/grocery.jpg" alt="">
+  <div class="bub q"><span class="k">Q</span><span class="cyc" aria-hidden="true"><span class="nm" lang="en" data-cue="1.2" data-off="1.88">English</span><span class="nm" lang="zh" data-cue="1.88" data-off="2.56">中文</span><span class="nm" lang="hi" data-cue="2.56" data-off="3.24">हिन्दी</span><span class="nm" lang="es" data-cue="3.24" data-off="3.92">Español</span><span class="nm" lang="fr" data-cue="3.92" data-off="4.6">Français</span><span class="nm" lang="ar" data-cue="4.6" data-off="5.28">العربية</span><span class="nm" lang="bn" data-cue="5.28" data-off="5.96">বাংলা</span><span class="nm" lang="ru" data-cue="5.96" data-off="6.64">Русский</span><span class="nm" lang="ur" data-cue="6.64" data-off="7.32">اردو</span><span class="nm" lang="ja" data-cue="7.32">日本語</span></span><span class="lines"><span class="ln" data-cue="1.2" data-off="4.6"><i style="width:150px"></i><i style="width:112px"></i></span><span class="ln rtl" data-cue="4.6" data-off="5.28"><i style="width:150px"></i><i style="width:112px"></i></span><span class="ln" data-cue="5.28" data-off="6.64"><i style="width:150px"></i><i style="width:112px"></i></span><span class="ln rtl" data-cue="6.64" data-off="7.32"><i style="width:150px"></i><i style="width:112px"></i></span><span class="ln" data-cue="7.32"><i style="width:150px"></i><i style="width:112px"></i></span></span></div>
+  <div class="palo">↓ PALO</div>
+  <div class="bub a"><span class="k">A</span><span class="cyc" aria-hidden="true"><span class="nm" lang="en" data-cue="1.2" data-off="1.88">English</span><span class="nm" lang="zh" data-cue="1.88" data-off="2.56">中文</span><span class="nm" lang="hi" data-cue="2.56" data-off="3.24">हिन्दी</span><span class="nm" lang="es" data-cue="3.24" data-off="3.92">Español</span><span class="nm" lang="fr" data-cue="3.92" data-off="4.6">Français</span><span class="nm" lang="ar" data-cue="4.6" data-off="5.28">العربية</span><span class="nm" lang="bn" data-cue="5.28" data-off="5.96">বাংলা</span><span class="nm" lang="ru" data-cue="5.96" data-off="6.64">Русский</span><span class="nm" lang="ur" data-cue="6.64" data-off="7.32">اردو</span><span class="nm" lang="ja" data-cue="7.32">日本語</span></span><span class="lines"><span class="ln" data-cue="1.2" data-off="4.6"><i style="width:160px"></i><i style="width:144px"></i><i style="width:160px"></i><i style="width:84px"></i></span><span class="ln rtl" data-cue="4.6" data-off="5.28"><i style="width:160px"></i><i style="width:144px"></i><i style="width:160px"></i><i style="width:84px"></i></span><span class="ln" data-cue="5.28" data-off="6.64"><i style="width:160px"></i><i style="width:144px"></i><i style="width:160px"></i><i style="width:84px"></i></span><span class="ln rtl" data-cue="6.64" data-off="7.32"><i style="width:160px"></i><i style="width:144px"></i><i style="width:160px"></i><i style="width:84px"></i></span><span class="ln" data-cue="7.32"><i style="width:160px"></i><i style="width:144px"></i><i style="width:160px"></i><i style="width:84px"></i></span></span></div>
+
+  <!-- ===== how the data is made ===== -->
+  <div class="pipe panel"></div>
+  <div class="pipe-l lbl">Training data</div>
+  <div class="box en rise" data-cue="0.2">English instructions</div>
+  <div class="arw" data-cue="0.5" style="left:129px">→</div>
+  <div class="box llm rise" data-cue="0.5">fine-tuned LLM translates</div>
+  <div class="arw" data-cue="0.8" style="left:249px">→</div>
+  <div class="box out rise" data-cue="0.8">+ 9 languages</div>
+  <div class="pipe-s" data-cue="1.0">semi-automated, minimal manual effort</div>
+
+  <!-- ===== speakers per language (paper's Fig. 1), to scale ===== -->
+  <div class="chart panel"></div>
+  <div class="chart-l lbl">Speakers per language</div>
+  <div class="rl" style="top:72px">English</div>
+  <div class="bar hi wipe" data-cue="1.2" style="top:74px;width:360.0px"></div>
+  <div class="val" data-cue="1.45" style="top:72px;left:858.0px">1.4B</div>
+  <div class="rl" style="top:93px">Chinese</div>
+  <div class="bar hi wipe" data-cue="1.88" style="top:95px;width:282.9px"></div>
+  <div class="val" data-cue="2.13" style="top:93px;left:780.9px">1.1B</div>
+  <div class="rl" style="top:114px">Hindi</div>
+  <div class="bar low wipe" data-cue="2.56" style="top:116px;width:156.6px"></div>
+  <div class="val" data-cue="2.81" style="top:114px;left:654.6px">609M</div>
+  <div class="gain pop" data-cue="8.7" style="top:113px">largest gains</div>
+  <div class="rl" style="top:135px">Spanish</div>
+  <div class="bar hi wipe" data-cue="3.24" style="top:137px;width:143.7px"></div>
+  <div class="val" data-cue="3.49" style="top:135px;left:641.7px">559M</div>
+  <div class="rl" style="top:156px">French</div>
+  <div class="bar hi wipe" data-cue="3.92" style="top:158px;width:79.7px"></div>
+  <div class="val" data-cue="4.17" style="top:156px;left:577.7px">310M</div>
+  <div class="rl" style="top:177px">Arabic</div>
+  <div class="bar low wipe" data-cue="4.6" style="top:179px;width:70.5px"></div>
+  <div class="val" data-cue="4.85" style="top:177px;left:568.5px">274M</div>
+  <div class="gain pop" data-cue="8.8" style="top:176px">largest gains</div>
+  <div class="rl" style="top:198px">Bengali</div>
+  <div class="bar low wipe" data-cue="5.28" style="top:200px;width:70.2px"></div>
+  <div class="val" data-cue="5.53" style="top:198px;left:568.2px">273M</div>
+  <div class="gain pop" data-cue="8.9" style="top:197px">largest gains</div>
+  <div class="rl" style="top:219px">Russian</div>
+  <div class="bar hi wipe" data-cue="5.96" style="top:221px;width:65.6px"></div>
+  <div class="val" data-cue="6.21" style="top:219px;left:563.6px">255M</div>
+  <div class="rl" style="top:240px">Urdu</div>
+  <div class="bar low wipe" data-cue="6.64" style="top:242px;width:59.7px"></div>
+  <div class="val" data-cue="6.89" style="top:240px;left:557.7px">232M</div>
+  <div class="gain pop" data-cue="9.0" style="top:239px">largest gains</div>
+  <div class="rl" style="top:261px">Japanese</div>
+  <div class="bar hi wipe" data-cue="7.32" style="top:263px;width:31.6px"></div>
+  <div class="val" data-cue="7.57" style="top:261px;left:529.6px">123M</div>
+
+  <div class="tot-l">All 10</div>
+  <div class="seg hi wipe" data-cue="1.2" style="left:492.0px;width:130.3px"></div>
+  <div class="seg hi wipe" data-cue="1.88" style="left:622.3px;width:102.4px"></div>
+  <div class="seg low wipe" data-cue="2.56" style="left:724.8px;width:56.7px"></div>
+  <div class="seg hi wipe" data-cue="3.24" style="left:781.4px;width:52.0px"></div>
+  <div class="seg hi wipe" data-cue="3.92" style="left:833.5px;width:28.9px"></div>
+  <div class="seg low wipe" data-cue="4.6" style="left:862.4px;width:25.5px"></div>
+  <div class="seg low wipe" data-cue="5.28" style="left:887.9px;width:25.4px"></div>
+  <div class="seg hi wipe" data-cue="5.96" style="left:913.3px;width:23.7px"></div>
+  <div class="seg low wipe" data-cue="6.64" style="left:937.0px;width:21.6px"></div>
+  <div class="seg hi wipe" data-cue="7.32" style="left:958.6px;width:11.5px"></div>
+  <i class="tick" style="left:492.0px"></i><span class="tl" style="left:477.0px">0</span>
+  <i class="tick" style="left:585.1px"></i><span class="tl" style="left:570.1px">1B</span>
+  <i class="tick" style="left:678.2px"></i><span class="tl" style="left:663.2px">2B</span>
+  <i class="tick" style="left:771.3px"></i><span class="tl" style="left:756.3px">3B</span>
+  <i class="tick" style="left:864.4px"></i><span class="tl" style="left:849.4px">4B</span>
+  <i class="tick" style="left:957.5px"></i><span class="tl" style="left:942.5px">5B</span>
+  <div class="tot-v rise" data-cue="8.1">≈5B people <span>· 65% of the world population</span></div>
+
+  <div class="badge">
+    <span class="chip accent rise" data-cue="9.4">10 languages</span>
+    <span class="chip soft rise" data-cue="9.6">1.7B · 7B · 13B models</span>
+  </div>
+</div>
+<script src="viz.js"></script>
+</body>
+</html>

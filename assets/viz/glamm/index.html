@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GLaMM — explainer clip v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../viz.css">
+<style>.stage { width: 1600px; height: 640px; } html, body { background: #f4f2ed; }
+/* The export's player backdrop (#0d0d0c) showed as a thin dark line at the card edges; match it to the clip's own background */
+.stage > div:first-child { background: #f4f2ed !important; }</style>
+</head>
+<body>
+<!-- Hanoona's "GLaMM Explainer v2" exactly as exported from Claude Design.
+     glamm.js = glamm-video-v2.jsx compiled as-is (plus one start line); cut/ and img/ are the original files.
+     ../dc-lite.js stands in for the Claude Design runtime; ../viz.js handles play/pause and reduced motion. -->
+<div class="stage" data-loop="32.9" data-rest="1.6" role="img"
+     aria-label="GLaMM explainer: GLaMM answers a question about an image while each phrase gets its segmentation mask; the architecture assembles from image and region encoders through the LLM to the pixel decoder; the four-level GranD annotation pipeline; the GranD dataset with 810M regions and 7.5M concepts; and multi-turn referring segmentation chats."></div>
+<script>
+  window.OM_SCENES = '[{"name":"Open","dur":2.6,"desc":"GLaMM title beside a mosaic of grounded-caption results"},{"name":"Ask","dur":4.6,"desc":"A user asks for a description; the answer types out and masks scan onto the balloon"},{"name":"Model","dur":6.7,"desc":"The architecture assembles block by block as the camera follows data from encoders to LLM to pixel decoder"},{"name":"Pipeline","dur":7.6,"desc":"Semi-automatic GranD annotation: four levels light up in turn on one photo, each verified"},{"name":"Data","dur":4.8,"desc":"A GranD photo is scanned into dense masks; labels and dataset-scale counters pop in"},{"name":"Chat","dur":4.6,"desc":"Three multi-turn chats: each follow-up question re-segments the same photo"},{"name":"Outro","dur":2,"desc":"Mosaic and title rebuild to match the first frame for a seamless loop"}]';
+  window.OM_PLAYBACK = '{"mode":"loop"}';
+  window.TWEAK_DEFAULTS = {"motionEditor":true,"theme":"light"};
+</script>
+<script src="../vendor/react.production.min.js"></script>
+<script src="../vendor/react-dom.production.min.js"></script>
+<script src="../dc-lite.js"></script>
+<script src="glamm.js"></script>
+<script>dcMount();</script>
+<script src="../viz.js"></script>
+</body>
+</html>
