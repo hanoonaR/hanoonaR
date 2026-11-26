@@ -503,7 +503,6 @@ html:not(.viz-live) .viz { display: none; }
   .moment p { font-size: 14px; }
   .moment .credit { font-size: 13px; }
   .site-footer { font-size: 13px; }
-  .lede-break { display: none; }  /* the sentence wraps by itself on phones */
   /* Justified on phones too; word breaks and wrapping links keep the gaps between words small */
   .lede, .bio { hyphens: auto; -webkit-hyphens: auto; }
   .lede { font-size: 16px; }
